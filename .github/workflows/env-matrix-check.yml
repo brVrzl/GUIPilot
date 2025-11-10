@@ -40,7 +40,6 @@ jobs:
           miniforge-version: latest
           python-version: "3.10"
           channels: conda-forge,defaults
-          activate-environment: base
           use-mamba: true
 
       - name: conda info (Unix)
@@ -74,7 +73,7 @@ jobs:
 
       - name: Remove CI environment (Unix)
         if: ${{ always() && runner.os != 'Windows' }}
-        run: conda env remove -n ${{ matrix.platform.smoke_env }}
+        run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
 
       - name: Remove CI environment (Windows)
         if: ${{ always() && runner.os == 'Windows' }}
