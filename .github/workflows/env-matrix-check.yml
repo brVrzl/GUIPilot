@@ -10,6 +10,9 @@ jobs:
   env-setup:
     name: Setup ${{ matrix.platform.name }}
     runs-on: ${{ matrix.platform.runner }}
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
       fail-fast: false
       matrix:
@@ -17,12 +20,15 @@ jobs:
           - name: macos
             runner: macos-14
             setup_args: --platform macos --name guipilot-ci
+            smoke_env: guipilot-ci
           - name: linux-gpu
             runner: ubuntu-latest
             setup_args: --platform linux-gpu --name guipilot-ci
+            smoke_env: guipilot-ci
           - name: windows
             runner: windows-latest
             setup_args: --platform windows --name guipilot-ci
+            smoke_env: guipilot-ci
 
     steps:
       - name: Checkout
@@ -33,24 +39,43 @@ jobs:
         with:
           auto-update-conda: true
           python-version: "3.10"
-          activate-environment: ""
+          activate-environment: base
 
-      - name: conda info
-        shell: bash
+      - name: conda info (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: conda info
 
-      - name: Create/Update environment
-        shell: bash
+      - name: conda info (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: conda info
+
+      - name: Create/Update environment (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
 
-      - name: Smoke test environment
-        shell: bash
+      - name: Create/Update environment (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
+
+      - name: Smoke test environment (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: >
-          conda run -n guipilot-ci
+          conda run -n ${{ matrix.platform.smoke_env }}
           python -c "import sys; import platform; print(sys.version); print(platform.platform())"
 
-      - name: Remove CI environment
-        if: always()
-        shell: bash
-        run: conda env remove -n guipilot-ci
+      - name: Smoke test environment (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: conda run -n ${{ matrix.platform.smoke_env }} python -c "import sys; import platform; print(sys.version); print(platform.platform())"
+
+      - name: Remove CI environment (Unix)
+        if: ${{ always() && runner.os != 'Windows' }}
+        run: conda env remove -n ${{ matrix.platform.smoke_env }}
+
+      - name: Remove CI environment (Windows)
+        if: ${{ always() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: conda env remove -n ${{ matrix.platform.smoke_env }}
 
