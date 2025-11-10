@@ -42,18 +42,42 @@ jobs:
           channels: conda-forge,defaults
           use-mamba: true
 
-      - name: conda info
+      - name: conda info (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: conda info
 
-      - name: Create/Update environment
+      - name: conda info (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: conda info
+
+      - name: Create/Update environment (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
 
-      - name: Smoke test environment
+      - name: Create/Update environment (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
+
+      - name: Smoke test environment (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: >
           conda run -n ${{ matrix.platform.smoke_env }}
           python -c "import sys; import platform; print(sys.version); print(platform.platform())"
 
-      - name: Remove CI environment
-        if: ${{ always() }}
-        run: conda env remove -n ${{ matrix.platform.smoke_env }} || true
+      - name: Smoke test environment (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: conda run -n ${{ matrix.platform.smoke_env }} python -c "import sys; import platform; print(sys.version); print(platform.platform())"
+
+      - name: Remove CI environment (Unix)
+        if: ${{ always() && runner.os != 'Windows' }}
+        run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
+
+      - name: Remove CI environment (Windows)
+        if: ${{ always() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: |
+          conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
 
