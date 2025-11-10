@@ -1,34 +1,18 @@
 import argparse
 import os
 import csv
+import sys
 import warnings
 import random
 from copy import deepcopy
 from pathlib import Path
 from typing import Callable
 
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from dotenv import load_dotenv
-
-from guipilot.matcher import (
-    WidgetMatcher,
-    GUIPilotV2 as GUIPilotMatcher,
-    GVT as GVTMatcher
-)
-
-from guipilot.checker import (
-    ScreenChecker,
-    GVT as GVTChecker
-)
-
-from guipilot.entities import Screen
-
-from mutate import (
-    insert_row,
-    delete_row,
-    swap_widgets,
-    change_widgets_text,
-    change_widgets_color
-)
 
 from utils import (
     load_screen,
@@ -97,6 +81,26 @@ if __name__ == "__main__":
     dataset_root = Path(dataset_candidate).expanduser().resolve()
     if not dataset_root.exists():
         raise FileNotFoundError(f"Dataset path does not exist: {dataset_root}")
+
+    os.environ["DATASET_PATH"] = str(dataset_root)
+
+    from guipilot.matcher import (
+        WidgetMatcher,
+        GUIPilotV2 as GUIPilotMatcher,
+        GVT as GVTMatcher,
+    )
+    from guipilot.checker import (
+        ScreenChecker,
+        GVT as GVTChecker,
+    )
+    from guipilot.entities import Screen
+    from mutate import (
+        insert_row,
+        delete_row,
+        swap_widgets,
+        change_widgets_text,
+        change_widgets_color,
+    )
 
     all_paths: list[Path] = [
         path
