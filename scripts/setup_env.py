@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -110,13 +112,21 @@ def main(argv: list[str] | None = None) -> int:
     if not env_file.exists():
         raise FileNotFoundError(f"Environment file not found: {env_file}")
 
+    conda_candidate = os.environ.get("CONDA_EXE") or shutil.which(args.conda)
+    if not conda_candidate:
+        raise FileNotFoundError(
+            "Conda executable not found. Ensure Conda is installed and available on PATH, "
+            "or provide --conda with an absolute path."
+        )
+    conda_exe = conda_candidate
+
     env_name = args.name or ENV_NAMES[target]
     should_update = args.update
-    if not should_update and env_exists(args.conda, env_name):
+    if not should_update and env_exists(conda_exe, env_name):
         print(f"[setup_env] Environment '{env_name}' already exists, switching to 'conda env update'.")
         should_update = True
 
-    command = [args.conda, "env", "update" if should_update else "create", "--file", str(env_file)]
+    command = [conda_exe, "env", "update" if should_update else "create", "--file", str(env_file)]
     command.extend(["--name", env_name])
 
     print(f"[setup_env] Running: {' '.join(command)}")
@@ -134,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[setup_env] Warning: requirements file not found, skipping: {req_file}", file=sys.stderr)
             continue
         pip_cmd = [
-            args.conda,
+            conda_exe,
             "run",
             "--name",
             env_name,
