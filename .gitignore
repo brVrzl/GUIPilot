@@ -4,6 +4,8 @@ __pycache__
 *.csv
 *.zip
 *.txt
+!requirements-pip.txt
+!requirements-pip-gpu.txt
 *.apk
 *.pt
 
