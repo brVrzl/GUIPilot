@@ -1,0 +1,21 @@
+Given the current GUI screen, you need to return a list of actions in Python to transition to the next screen.
+
+The input is the current GUI screenshot with annotations for the widget bounding boxes (actionable widgets).
+
+The output should be a list of actions. Actions can be one of the following Python functions:
+1. click(widget_id: int): This includes activating an input box, toggling a switch, checking a checkbox, etc.
+2. long_click(widget_id: int): Press a widget and hold for a duration.
+3. send_keys(value: str): Once a widget is selected, one can set the value of it.
+4. scroll(direction: Literal['up', 'down', 'left', 'right']): Scroll the entire screen to direction by 1 screen width/height.
+5. swipe(widget_id: int, direction: Literal['up', 'down', 'left', 'right']): Swipe from the center of the widget to its edge.
+6. drag(widget_id1: int, widget_id2: int): Drag widget 1 to the center of widget 2.
+7. go_back(): This would return to the previous screen
+
+For example, if we have the current GUI screen with two widgets: widget 1 is a button with text “confirm”, widget 2 is an input box with placeholder text as "please input the password".
+To transition to the next screen, I should focus on the input box, type my password, and click on confirm button.
+Therefore, the next action should be:
+```python
+click(2)
+send_keys("password")
+click(1)
+```

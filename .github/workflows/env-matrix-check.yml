@@ -1,0 +1,56 @@
+name: Conda Environment Matrix Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  env-setup:
+    name: Setup ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macos
+            runner: macos-14
+            setup_args: --platform macos --name guipilot-ci
+          - name: linux-gpu
+            runner: ubuntu-latest
+            setup_args: --platform linux-gpu --name guipilot-ci
+          - name: windows
+            runner: windows-latest
+            setup_args: --platform windows --name guipilot-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          python-version: "3.10"
+          activate-environment: ""
+
+      - name: conda info
+        shell: bash
+        run: conda info
+
+      - name: Create/Update environment
+        shell: bash
+        run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
+
+      - name: Smoke test environment
+        shell: bash
+        run: >
+          conda run -n guipilot-ci
+          python -c "import sys; import platform; print(sys.version); print(platform.platform())"
+
+      - name: Remove CI environment
+        if: always()
+        shell: bash
+        run: conda env remove -n guipilot-ci
+
