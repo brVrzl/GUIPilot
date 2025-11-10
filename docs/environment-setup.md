@@ -8,6 +8,8 @@
 python scripts/setup_env.py
 ```
 
+> 提示：脚本会优先使用 `CONDA_EXE`（由 Conda/Miniforge 设置），否则自动在 `PATH` 中查找 `conda`，可直接在 Windows、macOS、Linux 上运行。
+
 脚本会检测当前操作系统并对应选择：
 
 - macOS → `envs/environment-macos.yml`

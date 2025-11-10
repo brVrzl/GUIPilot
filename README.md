@@ -38,14 +38,17 @@ The core GUIPilot module is organized as follows:
 
 Clone the repository and follow the steps below:
 
-1. Create a conda environment.
+1. 运行统一脚本创建/更新 Conda 环境（脚本会根据当前系统自动选择 `envs/` 下的配置并同步 pip 依赖）：
     ```bash
-    conda env create -f environment.yml
-    conda activate guipilot
+    python scripts/setup_env.py
     ```
+    - macOS/Windows 默认环境名为 `guipilot`
+    - Linux GPU 机器可以显式指定：`python scripts/setup_env.py --platform linux-gpu --name guipilot-gpu`
+    - 更多命令选项见 `docs/environment-setup.md`
 
-2. Install guipilot as a Python package.
+2. 激活环境后安装 GUIPilot：
     ```bash
+    conda activate guipilot          # 或 guipilot-gpu
     pip install .
     ```
 
