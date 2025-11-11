@@ -26,17 +26,14 @@ jobs:
             runner: macos-14
             setup_args: --platform macos --name guipilot-ci
             smoke_env: guipilot-ci
-            shell: bash
           - name: linux-gpu
             runner: ubuntu-latest
             setup_args: --platform linux-gpu --name guipilot-ci
             smoke_env: guipilot-ci
-            shell: bash
           - name: windows
             runner: windows-latest
             setup_args: --platform windows --name guipilot-ci
             smoke_env: guipilot-ci
-            shell: pwsh
 
     steps:
       - name: Checkout
@@ -59,28 +56,61 @@ jobs:
         shell: pwsh
         run: conda info
 
-      - name: Create/Update environment
-        shell: ${{ matrix.platform.shell }}
+      - name: Create/Update environment (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
 
-      - name: Verify Python dependencies
-        shell: ${{ matrix.platform.shell }}
+      - name: Create/Update environment (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
+
+      - name: Verify Python dependencies (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: |
+          conda run -n ${{ matrix.platform.smoke_env }} python - <<'PY'
+          import importlib, sys
+          modules = ["dotenv", "cv2", "supervision", "uiautomator2"]
+          missing = [m for m in modules if importlib.util.find_spec(m) is None]
+          if missing:
+              sys.exit("Missing modules: " + ", ".join(missing))
+          print("All required modules are available.")
+          PY
+
+      - name: Verify Python dependencies (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
         run: >
           conda run -n ${{ matrix.platform.smoke_env }} python -c "import importlib, sys; modules=['dotenv','cv2','supervision','uiautomator2']; missing=[m for m in modules if importlib.util.find_spec(m) is None]; sys.exit(0 if not missing else 'Missing modules: ' + ', '.join(missing))"
 
-      - name: Run RQ1 smoke test
-        shell: ${{ matrix.platform.shell }}
+      - name: Run RQ1 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: >
           conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq1_screen_inconsistency/main.py --dataset datasets/new --limit 1 --skip-visualize --output-dir ci-artifacts/rq1
 
-      - name: Run RQ2 smoke test
-        shell: ${{ matrix.platform.shell }}
+      - name: Run RQ1 smoke test (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: >
+          conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq1_screen_inconsistency/main.py --dataset datasets/new --limit 1 --skip-visualize --output-dir ci-artifacts/rq1
+
+      - name: Run RQ2 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
         run: >
           conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq2_flow_inconsistency/main.py --dataset datasets/rq2/smoke_app --mode replay --use-layout --skip-agent --limit 1 --output-dir ci-artifacts/rq2
 
-      - name: Remove CI environment
-        if: ${{ always() }}
-        shell: ${{ matrix.platform.shell }}
-        run: conda env remove -n ${{ matrix.platform.smoke_env }}
-        continue-on-error: true
+      - name: Run RQ2 smoke test (Windows)
+        if: ${{ runner.os == 'Windows' }}
+        shell: pwsh
+        run: >
+          conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq2_flow_inconsistency/main.py --dataset datasets/rq2/smoke_app --mode replay --use-layout --skip-agent --limit 1 --output-dir ci-artifacts/rq2
+
+      - name: Remove CI environment (Unix)
+        if: ${{ always() && runner.os != 'Windows' }}
+        run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
+
+      - name: Remove CI environment (Windows)
+        if: ${{ always() && runner.os == 'Windows' }}
+        shell: pwsh
+        run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
 
