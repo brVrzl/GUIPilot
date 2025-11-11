@@ -7,7 +7,10 @@ import numpy as np
 from dotenv import load_dotenv
 
 from guipilot.entities import Screen, Widget, Inconsistency, Bbox
-from ..utils import load_screen
+try:
+    from experiments.rq1_screen_inconsistency.utils import load_screen
+except ImportError:  # pragma: no cover
+    from ..utils import load_screen  # type: ignore
 from .utils import sample_p
 
 
