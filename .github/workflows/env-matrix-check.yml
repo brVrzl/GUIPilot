@@ -10,6 +10,8 @@ jobs:
   smoke-tests:
     name: Smoke ${{ matrix.platform.name }}
     runs-on: ${{ matrix.platform.runner }}
+    env:
+      ENABLE_LOCAL_DETECTOR: "1"
     defaults:
       run:
         shell: bash -l {0}
@@ -33,6 +35,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download detector weights
+        run: |
+          python -m pip install --quiet gdown
+          gdown --fuzzy "https://drive.google.com/uc?id=15YUP8aMXC97n-m-U28wP1Sz5Eabw69m-" -O guipilot/models/detector/best.pt
 
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
