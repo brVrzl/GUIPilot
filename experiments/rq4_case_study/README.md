@@ -55,6 +55,7 @@ python experiments/rq4_case_study/main.py \
 - `--include-branches`：默认会忽略文件名包含 `branch` 的屏幕，开启后强制评估。
 - `--use-demo-data`：生成内置演示数据（无需外部下载），主要用于烟测或快速验证。
 - `--allow-empty`：若筛选后无可评估屏幕，不抛出错误，直接退出。
+- 默认以离线模式运行（本地 YOLO + PaddleOCR）。如需切换到自建 HTTP 服务，可设置 `OCR_SERVICE_URL`、`DETECTOR_SERVICE_URL`；若设备支持 GPU，可将 `PADDLEOCR_USE_GPU=1` 开启 PaddleOCR 的 GPU 推理。
 
 ### 输出内容
 

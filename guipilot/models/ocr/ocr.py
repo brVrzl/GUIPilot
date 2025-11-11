@@ -1,4 +1,5 @@
 import base64
+import os
 
 import cv2
 import requests
@@ -7,11 +8,22 @@ from paddleocr import PaddleOCR
 
 
 class OCR():
-    def __init__(self, service_url: str = None) -> None:
+    def __init__(self, service_url: str | None = None, use_gpu: bool | None = None, language: str | None = None) -> None:
         self.service_url = service_url
+        self.language = language or os.getenv("PADDLEOCR_LANG", "ch")
 
         if service_url is None:
-            self.ocr = PaddleOCR(lang="ch", show_log=False, use_gpu=True)
+            if use_gpu is None:
+                use_gpu = os.getenv("PADDLEOCR_USE_GPU", "0") == "1"
+
+            try:
+                self.ocr = PaddleOCR(lang=self.language, show_log=False, use_gpu=use_gpu)
+            except Exception:
+                if use_gpu:
+                    # Fallback to CPU if GPU initialization fails
+                    self.ocr = PaddleOCR(lang=self.language, show_log=False, use_gpu=False)
+                else:
+                    raise
 
     def _local(self, image: np.ndarray) -> tuple[list, list]:
         texts, text_bboxes = [], []

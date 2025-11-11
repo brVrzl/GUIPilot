@@ -53,6 +53,17 @@ python scripts/setup_env.py --update
 
 > 环境创建后需手动执行 `conda activate <环境名>`（默认 macOS/Windows 为 `guipilot`，Linux GPU 为 `guipilot-gpu`）才能使用。
 
+## 视觉模型配置（在线 / 离线）
+
+GUIPilot 默认在本地加载检测器（YOLOv8 权重）和 PaddleOCR，无需额外服务。如果你有自建的 HTTP 服务，可以通过以下环境变量切换：
+
+- `OCR_SERVICE_URL`：设置后将改为调用远程 OCR（默认不设置，使用本地 PaddleOCR）。
+- `DETECTOR_SERVICE_URL`：设置后改为调用远程检测服务（默认不设置，使用本地 YOLO 权重）。
+- `PADDLEOCR_USE_GPU`：设为 `1` 时尝试启用 GPU；若初始化失败会自动回退 CPU。
+- `PADDLEOCR_LANG`：指定 PaddleOCR 语言，默认 `ch`。
+
+CI 及烟测未启动远程服务，因此保持默认即可。
+
 ## CI 流程
 
 `.github/workflows/env-matrix-check.yml` 会在 macOS、Linux（可选 Windows）三个 runner 上执行统一烟测：
