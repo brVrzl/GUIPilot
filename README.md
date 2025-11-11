@@ -65,7 +65,7 @@ Each directory within `/experiments` includes a `README.md` file that provides d
 - 组件级评估（RQ3）：`experiments/rq3_component_wise_evaluation/main.py`
 - 案例研究（RQ4）：`experiments/rq4_case_study/main.py`
 
-> 默认情况下，GUIPilot 会离线加载本地 YOLO 检测器与 PaddleOCR。如果你已有在线服务，可通过设置 `DETECTOR_SERVICE_URL`、`OCR_SERVICE_URL` 环境变量切换；`PADDLEOCR_USE_GPU=1` 将尝试启用 GPU。
+- 默认情况下，检测器使用本地 YOLO 权重，而 OCR 需显式设置 `ENABLE_PADDLEOCR=1` 才会加载本地 PaddleOCR；也可以通过 `DETECTOR_SERVICE_URL`、`OCR_SERVICE_URL` 切换到远程服务，`PADDLEOCR_USE_GPU=1` 则尝试启用 GPU。
 
 ### Step 1: Load Screenshots as `Screen` Instances
 

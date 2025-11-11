@@ -11,7 +11,7 @@
 
 数据集路径可通过 `--dataset` 参数显式传入，或在 `.env` 中设置 `DATASET_PATH`。
 
-- 默认使用本地模型完成检测与 OCR。如需改为远程服务，可设置 `DETECTOR_SERVICE_URL`、`OCR_SERVICE_URL`；`PADDLEOCR_USE_GPU=1` 将尝试启用 GPU PaddleOCR。
+- 默认使用本地 YOLO 检测器；如需离线 OCR，可设置 `ENABLE_PADDLEOCR=1` 加载 PaddleOCR（支持 `PADDLEOCR_USE_GPU=1`）；也可通过 `DETECTOR_SERVICE_URL`、`OCR_SERVICE_URL` 切换到远程服务。
 
 ### 脚本用法
 

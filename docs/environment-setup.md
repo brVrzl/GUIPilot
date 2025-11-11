@@ -60,6 +60,7 @@ GUIPilot 默认在本地加载检测器（YOLOv8 权重）和 PaddleOCR，无需
 - `OCR_SERVICE_URL`：设置后将改为调用远程 OCR（默认不设置，使用本地 PaddleOCR）。
 - `DETECTOR_SERVICE_URL`：设置后改为调用远程检测服务（默认不设置，使用本地 YOLO 权重）。
 - `PADDLEOCR_USE_GPU`：设为 `1` 时尝试启用 GPU；若初始化失败会自动回退 CPU。
+- `ENABLE_PADDLEOCR`：设为 `1` 才会加载本地 PaddleOCR，默认关闭以兼容 CI。
 - `PADDLEOCR_LANG`：指定 PaddleOCR 语言，默认 `ch`。
 
 CI 及烟测未启动远程服务，因此保持默认即可。
