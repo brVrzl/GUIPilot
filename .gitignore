@@ -10,6 +10,7 @@ __pycache__
 *.apk
 *.pt
 runs/
+ci-artifacts/
 
 .env
 

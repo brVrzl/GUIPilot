@@ -53,22 +53,18 @@ python scripts/setup_env.py --update
 
 > 环境创建后需手动执行 `conda activate <环境名>`（默认 macOS/Windows 为 `guipilot`，Linux GPU 为 `guipilot-gpu`）才能使用。
 
-## CI 依赖检测
+## CI 流程
 
-`.github/workflows/env-matrix-check.yml` 使用 GitHub Actions 在 macOS、Linux、Windows 三个平台上执行如下验证：
+`.github/workflows/env-matrix-check.yml` 会在 macOS、Linux（可选 Windows）三个 runner 上执行统一烟测：
 
-- 运行 `python scripts/setup_env.py --platform <target> --name guipilot-ci`；
-- 在新环境中完成 pip 依赖安装并执行简单导入测试；
-- 流水线结束后删除临时环境。
+1. `python scripts/setup_env.py --platform <target> --name guipilot-ci` 创建/更新 Conda 环境；
+2. 在新环境中运行依赖探测（关键包导入）；
+3. 依次执行四个实验脚本的精简版测试：
+   - RQ1：`experiments/rq1_screen_inconsistency/main.py --limit 1 --skip-visualize`
+   - RQ2：`experiments/rq2_flow_inconsistency/main.py --mode replay --skip-agent --limit 1`
+   - RQ3：`experiments/rq3_component_wise_evaluation/main.py --pipelines guipilot_full --limit 1 --skip-visualize`
+   - RQ4：`experiments/rq4_case_study/main.py --use-demo-data --skip-agent --allow-empty --skip-visualize`
+4. 清理临时环境，避免污染 runner。
 
-每次推送或 PR 都会触发该流程，可以及早发现不同平台的依赖缺失或版本冲突。
-
-## 实验烟测
-
-为确保关键实验脚本在 CI 中可复现，仓库提供以下工作流：
-
-- `rq1-smoke.yml`：运行 RQ1 屏幕不一致性离线烟测（限制样本数，跳过可视化）。
-- `rq2-smoke.yml`：运行 RQ2 流程不一致性离线烟测（使用录制布局、跳过 VLM 阶段）。
-
-可在 GitHub Actions 页面手动触发 `workflow_dispatch`，或通过推送与 PR 自动获知依赖或脚本回归。
+所有推送与 PR 默认触发该流程，确保跨平台依赖与脚本回归能被及早发现。若需恢复 Windows 节点，可解注工作流中的相关矩阵配置。*** End Patch
 

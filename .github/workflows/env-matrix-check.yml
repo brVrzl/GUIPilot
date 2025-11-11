@@ -119,6 +119,30 @@ jobs:
           --limit 1
           --output-dir ci-artifacts/rq2
 
+      - name: Run RQ3 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: >
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq3_component_wise_evaluation/main.py
+          --dataset datasets/new
+          --limit 1
+          --pipelines guipilot_full
+          --skip-visualize
+          --output-dir ci-artifacts/rq3
+
+      - name: Run RQ4 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: >
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq4_case_study/main.py
+          --use-demo-data
+          --skip-agent
+          --allow-empty
+          --skip-visualize
+          --process-limit 1
+          --screen-limit 1
+          --output-dir ci-artifacts/rq4
+
       # - name: Run RQ2 smoke test (Windows)
       #   if: ${{ runner.os == 'Windows' }}
       #   shell: pwsh
