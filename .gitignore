@@ -6,6 +6,7 @@ __pycache__
 *.txt
 !requirements-pip.txt
 !requirements-pip-gpu.txt
+!requirements-pip-windows.txt
 *.apk
 *.pt
 runs/

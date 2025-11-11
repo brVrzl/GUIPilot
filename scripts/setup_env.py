@@ -33,7 +33,7 @@ ENV_NAMES = {
 }
 PIP_REQUIREMENTS = {
     "macos": [ROOT / "requirements-pip.txt"],
-    "windows": [ROOT / "requirements-pip.txt"],
+    "windows": [ROOT / "requirements-pip-windows.txt"],
     "linux-gpu": [
         ROOT / "requirements-pip.txt",
         ROOT / "requirements-pip-gpu.txt",

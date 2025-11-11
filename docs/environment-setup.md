@@ -47,6 +47,7 @@ python scripts/setup_env.py --update
 - `envs/environment-windows.yml`：Windows x86_64 环境，默认 CPU 模式。
 - `requirements-pip.txt`：跨平台通用的 pip 依赖。
 - `requirements-pip-gpu.txt`：Linux GPU 专用的 CUDA 扩展依赖。
+- `requirements-pip-windows.txt`：Windows 平台的精简 pip 依赖（针对 protobuf 与 paddlepaddle 的版本约束）。
 
 如需添加新依赖，请同步更新相关环境文件并记录原因，以保持不同平台配置的可维护性。
 
