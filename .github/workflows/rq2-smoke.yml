@@ -1,0 +1,70 @@
+name: RQ2 Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  rq2-linux:
+    name: RQ2 Linux Smoke Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          python-version: "3.10"
+          channels: conda-forge,defaults
+          use-mamba: true
+
+      - name: Create/Update environment
+        run: python scripts/setup_env.py --platform linux-gpu --name guipilot-rq2-ci
+
+      - name: Verify Python dependencies
+        run: |
+          conda run -n guipilot-rq2-ci python - <<'PY'
+          import importlib
+
+          required = [
+              "dotenv",
+              "cv2",
+              "supervision",
+              "uiautomator2",
+          ]
+
+          missing = []
+          for module in required:
+              try:
+                  importlib.import_module(module)
+              except Exception as exc:
+                  missing.append(f"{module}: {exc}")
+
+          if missing:
+              raise SystemExit("Missing modules after environment setup:\n" + "\n".join(missing))
+
+          print("All required modules are available.")
+          PY
+
+      - name: Run RQ2 smoke test
+        run: >
+          conda run -n guipilot-rq2-ci
+          python experiments/rq2_flow_inconsistency/main.py
+          --dataset datasets/rq2/smoke_app
+          --mode replay
+          --use-layout
+          --skip-agent
+          --limit 1
+          --output-dir ci-artifacts/rq2
+
+      - name: Remove CI environment
+        if: ${{ always() }}
+        run: conda env remove -n guipilot-rq2-ci || exit 0
+

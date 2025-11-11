@@ -62,3 +62,12 @@ python scripts/setup_env.py --update
 
 每次推送或 PR 都会触发该流程，可以及早发现不同平台的依赖缺失或版本冲突。
 
+## 实验烟测
+
+为确保关键实验脚本在 CI 中可复现，仓库提供以下工作流：
+
+- `rq1-smoke.yml`：运行 RQ1 屏幕不一致性离线烟测（限制样本数，跳过可视化）。
+- `rq2-smoke.yml`：运行 RQ2 流程不一致性离线烟测（使用录制布局、跳过 VLM 阶段）。
+
+可在 GitHub Actions 页面手动触发 `workflow_dispatch`，或通过推送与 PR 自动获知依赖或脚本回归。
+
