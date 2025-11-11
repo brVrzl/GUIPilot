@@ -57,6 +57,8 @@ python scripts/setup_env.py --update
 
 GUIPilot 默认在本地加载检测器（YOLOv8 权重）和 PaddleOCR，无需额外服务。如果你有自建的 HTTP 服务，可以通过以下环境变量切换：
 
+- `ENABLE_LOCAL_DETECTOR`：设为 `1` 时加载本地 YOLO 权重（默认关闭以避免缺失权重导致错误）。
+- `DETECTOR_WEIGHT_PATH`：自定义 YOLO 权重路径（配合 `ENABLE_LOCAL_DETECTOR=1` 使用）。
 - `OCR_SERVICE_URL`：设置后将改为调用远程 OCR（默认不设置，使用本地 PaddleOCR）。
 - `DETECTOR_SERVICE_URL`：设置后改为调用远程检测服务（默认不设置，使用本地 YOLO 权重）。
 - `PADDLEOCR_USE_GPU`：设为 `1` 时尝试启用 GPU；若初始化失败会自动回退 CPU。

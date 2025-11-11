@@ -55,7 +55,7 @@ python experiments/rq4_case_study/main.py \
 - `--include-branches`：默认会忽略文件名包含 `branch` 的屏幕，开启后强制评估。
 - `--use-demo-data`：生成内置演示数据（无需外部下载），主要用于烟测或快速验证。
 - `--allow-empty`：若筛选后无可评估屏幕，不抛出错误，直接退出。
-- 默认使用本地 YOLO 检测器；如需离线 OCR，可设置 `ENABLE_PADDLEOCR=1` 启动 PaddleOCR（可配合 `PADDLEOCR_USE_GPU=1`）；也可通过 `OCR_SERVICE_URL`、`DETECTOR_SERVICE_URL` 指向自建服务。
+- 默认不开启离线模型；如需本地检测器，设置 `ENABLE_LOCAL_DETECTOR=1`（可配合 `DETECTOR_WEIGHT_PATH`）；如需离线 OCR，设置 `ENABLE_PADDLEOCR=1`（可配合 `PADDLEOCR_USE_GPU=1`）；也可通过 `OCR_SERVICE_URL`、`DETECTOR_SERVICE_URL` 指向自建服务。
 
 ### 输出内容
 
