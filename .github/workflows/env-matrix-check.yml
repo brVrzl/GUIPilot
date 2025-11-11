@@ -1,10 +1,5 @@
 name: Cross-Platform Smoke Tests
 
-# on:
-#   push:
-#     branches: [main]
-#   pull_request:
-#   workflow_dispatch:
 on:
   push:
     branches: [main]
@@ -12,8 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  env-setup:
-    name: Setup ${{ matrix.platform.name }}
+  smoke-tests:
+    name: Smoke ${{ matrix.platform.name }}
     runs-on: ${{ matrix.platform.runner }}
     defaults:
       run:
@@ -47,6 +42,7 @@ jobs:
           channels: conda-forge,defaults
           use-mamba: true
 
+      # ---------- conda info ----------
       - name: conda info (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: conda info
@@ -56,6 +52,7 @@ jobs:
         shell: pwsh
         run: conda info
 
+      # ---------- create/update env ----------
       - name: Create/Update environment (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
@@ -65,6 +62,7 @@ jobs:
         shell: pwsh
         run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
 
+      # ---------- verify deps ----------
       - name: Verify Python dependencies (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: |
@@ -81,30 +79,60 @@ jobs:
         if: ${{ runner.os == 'Windows' }}
         shell: pwsh
         run: >
-          conda run -n ${{ matrix.platform.smoke_env }} python -c "import importlib, sys; modules=['dotenv','cv2','supervision','uiautomator2']; missing=[m for m in modules if importlib.util.find_spec(m) is None]; sys.exit(0 if not missing else 'Missing modules: ' + ', '.join(missing))"
+          conda run -n ${{ matrix.platform.smoke_env }} python -c
+          "import importlib, sys; modules=['dotenv','cv2','supervision','uiautomator2'];
+          missing=[m for m in modules if importlib.util.find_spec(m) is None];
+          sys.exit(0 if not missing else 'Missing modules: ' + ', '.join(missing))"
 
+      # ---------- RQ1 ----------
       - name: Run RQ1 smoke test (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: >
-          conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq1_screen_inconsistency/main.py --dataset datasets/new --limit 1 --skip-visualize --output-dir ci-artifacts/rq1
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq1_screen_inconsistency/main.py
+          --dataset datasets/new
+          --limit 1
+          --skip-visualize
+          --output-dir ci-artifacts/rq1
 
       - name: Run RQ1 smoke test (Windows)
         if: ${{ runner.os == 'Windows' }}
         shell: pwsh
         run: >
-          conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq1_screen_inconsistency/main.py --dataset datasets/new --limit 1 --skip-visualize --output-dir ci-artifacts/rq1
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq1_screen_inconsistency/main.py
+          --dataset datasets/new
+          --limit 1
+          --skip-visualize
+          --output-dir ci-artifacts/rq1
 
+      # ---------- RQ2 ----------
       - name: Run RQ2 smoke test (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: >
-          conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq2_flow_inconsistency/main.py --dataset datasets/rq2/smoke_app --mode replay --use-layout --skip-agent --limit 1 --output-dir ci-artifacts/rq2
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq2_flow_inconsistency/main.py
+          --dataset datasets/rq2/smoke_app
+          --mode replay
+          --use-layout
+          --skip-agent
+          --limit 1
+          --output-dir ci-artifacts/rq2
 
       - name: Run RQ2 smoke test (Windows)
         if: ${{ runner.os == 'Windows' }}
         shell: pwsh
         run: >
-          conda run -n ${{ matrix.platform.smoke_env }} python experiments/rq2_flow_inconsistency/main.py --dataset datasets/rq2/smoke_app --mode replay --use-layout --skip-agent --limit 1 --output-dir ci-artifacts/rq2
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq2_flow_inconsistency/main.py
+          --dataset datasets/rq2/smoke_app
+          --mode replay
+          --use-layout
+          --skip-agent
+          --limit 1
+          --output-dir ci-artifacts/rq2
 
+      # ---------- cleanup ----------
       - name: Remove CI environment (Unix)
         if: ${{ always() && runner.os != 'Windows' }}
         run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
@@ -113,4 +141,3 @@ jobs:
         if: ${{ always() && runner.os == 'Windows' }}
         shell: pwsh
         run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
-
