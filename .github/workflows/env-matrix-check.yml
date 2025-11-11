@@ -1,4 +1,4 @@
-name: Conda Environment Matrix Check
+name: Cross-Platform Smoke Tests
 
 # on:
 #   push:
@@ -6,6 +6,9 @@ name: Conda Environment Matrix Check
 #   pull_request:
 #   workflow_dispatch:
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -62,16 +65,39 @@ jobs:
         shell: pwsh
         run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
 
-      - name: Smoke test environment (Unix)
-        if: ${{ runner.os != 'Windows' }}
+      - name: Verify Python dependencies
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        run: |
+          conda run -n ${{ matrix.platform.smoke_env }} python - <<'PY'
+          import importlib, sys
+          modules = ["dotenv", "cv2", "supervision", "uiautomator2"]
+          missing = [m for m in modules if importlib.util.find_spec(m) is None]
+          if missing:
+              sys.exit("Missing modules: " + ", ".join(missing))
+          print("All required modules are available.")
+          PY
+
+      - name: Run RQ1 smoke test
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
         run: >
           conda run -n ${{ matrix.platform.smoke_env }}
-          python -c "import sys; import platform; print(sys.version); print(platform.platform())"
+          python experiments/rq1_screen_inconsistency/main.py
+          --dataset datasets/new
+          --limit 1
+          --skip-visualize
+          --output-dir ci-artifacts/rq1
 
-      - name: Smoke test environment (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        shell: pwsh
-        run: conda run -n ${{ matrix.platform.smoke_env }} python -c "import sys; import platform; print(sys.version); print(platform.platform())"
+      - name: Run RQ2 smoke test
+        shell: ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+        run: >
+          conda run -n ${{ matrix.platform.smoke_env }}
+          python experiments/rq2_flow_inconsistency/main.py
+          --dataset datasets/rq2/smoke_app
+          --mode replay
+          --use-layout
+          --skip-agent
+          --limit 1
+          --output-dir ci-artifacts/rq2
 
       - name: Remove CI environment (Unix)
         if: ${{ always() && runner.os != 'Windows' }}
@@ -80,6 +106,5 @@ jobs:
       - name: Remove CI environment (Windows)
         if: ${{ always() && runner.os == 'Windows' }}
         shell: pwsh
-        run: |
-          conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
+        run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
 
