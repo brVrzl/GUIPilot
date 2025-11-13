@@ -38,19 +38,30 @@ The core GUIPilot module is organized as follows:
 
 Clone the repository and follow the steps below:
 
-1. 运行统一脚本创建/更新 Conda 环境（脚本会根据当前系统自动选择 `envs/` 下的配置并同步 pip 依赖）：
-    ```bash
-    python scripts/setup_env.py
-    ```
-    - macOS/Windows 默认环境名为 `guipilot`
-    - Linux GPU 机器可以显式指定：`python scripts/setup_env.py --platform linux-gpu --name guipilot-gpu`
-    - 更多命令选项见 `docs/environment-setup.md`
+运行统一脚本创建/更新 Conda 环境（脚本会自动安装所有依赖并安装 `guipilot` 包）：
+```bash
+python scripts/setup_env.py
+```
 
-2. 激活环境后安装 GUIPilot：
-    ```bash
-    conda activate guipilot          # 或 guipilot-gpu
-    pip install .
-    ```
+- macOS/Windows 默认环境名为 `guipilot`
+- Linux GPU 机器可以显式指定：`python scripts/setup_env.py --platform linux-gpu --name guipilot-gpu`
+- 更多命令选项见 `docs/environment-setup.md`
+
+脚本会自动完成以下步骤：
+1. 创建/更新 Conda 环境（根据平台选择对应的 `envs/environment-*.yml`）
+2. 安装 pip 依赖（`requirements-pip.txt`，Linux GPU 还会安装 `requirements-pip-gpu.txt`）
+3. **安装 `guipilot` 包本身**（通过 `pip install -e .`，使用可编辑模式安装）
+
+安装完成后，激活环境即可使用：
+```bash
+conda activate guipilot          # 或 guipilot-gpu
+```
+
+> **说明**：
+> - `setup.py` 的作用是将 `guipilot` 包安装到 Python 环境中，使其可以在任何位置被导入（如 `from guipilot.matcher import ...`）
+> - 实验脚本中只保留了必要的 `sys.path` 修改，用于导入实验目录下的本地模块（`utils`、`mutate`、`actions`）
+> - `guipilot` 包已安装到环境中，不再需要通过修改 `sys.path` 来导入
+> - 这种设计更符合 Python 包管理的最佳实践，也便于在其他项目中使用 GUIPilot
 
 ### Setup Experiments
 

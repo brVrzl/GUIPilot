@@ -13,13 +13,13 @@ from pathlib import Path
 import cv2
 from dotenv import load_dotenv
 
-
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Add experiment directory to path for local imports (actions, utils)
+EXPERIMENT_DIR = Path(__file__).resolve().parent
+if str(EXPERIMENT_DIR) not in sys.path:
+    sys.path.insert(0, str(EXPERIMENT_DIR))
 
 from actions import Automator, Record
-from utils import (  # noqa: E402
+from utils import (
     get_action_completion,
     get_mock_screen,
     get_real_screen,
@@ -28,10 +28,10 @@ from utils import (  # noqa: E402
     execute_action,
     check_overlap,
 )
-from guipilot.agent import GPTAgent  # noqa: E402
-from guipilot.entities import Screen  # noqa: E402
-from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher  # noqa: E402
-from guipilot.checker import GVT as GVTChecker  # noqa: E402
+from guipilot.agent import GPTAgent
+from guipilot.entities import Screen
+from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher
+from guipilot.checker import GVT as GVTChecker
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

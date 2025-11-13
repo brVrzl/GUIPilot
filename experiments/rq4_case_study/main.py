@@ -10,9 +10,10 @@ import cv2
 import numpy as np
 from dotenv import load_dotenv
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Add experiment directory to path for local imports (utils)
+EXPERIMENT_DIR = Path(__file__).resolve().parent
+if str(EXPERIMENT_DIR) not in sys.path:
+    sys.path.insert(0, str(EXPERIMENT_DIR))
 
 from guipilot.agent import GPTAgent
 from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher
@@ -72,11 +73,6 @@ def parse_args() -> argparse.Namespace:
         help="Include branch screens (filenames containing 'branch'). Default会忽略。",
     )
     parser.add_argument(
-        "--use-demo-data",
-        action="store_true",
-        help="生成内置演示数据（无需额外下载），适用于烟测。",
-    )
-    parser.add_argument(
         "--allow-empty",
         action="store_true",
         help="若筛选后无可用屏幕，则不报错，直接退出。",
@@ -93,15 +89,9 @@ def get_processes(dataset_root: Path) -> list[Path]:
 
 
 def ensure_dataset_path(args: argparse.Namespace, output_root: Path) -> Path:
-    if args.use_demo_data:
-        demo_root = output_root / "_demo_dataset"
-        create_demo_dataset(demo_root)
-        os.environ["DATASET_PATH"] = str(demo_root)
-        return demo_root
-
     dataset_candidate = args.dataset or os.getenv("DATASET_PATH")
     if not dataset_candidate:
-        raise RuntimeError("Dataset path not provided. Use --dataset, --use-demo-data, or set DATASET_PATH.")
+        raise RuntimeError("Dataset path not provided. Use --dataset or set DATASET_PATH.")
 
     dataset_root = Path(dataset_candidate).expanduser().resolve()
     if not dataset_root.exists():
@@ -195,7 +185,7 @@ def evaluate_case_study(
             if not implementation_file.exists() or not mockup_file.exists():
                 continue
 
-            tolerate_failure = args.allow_empty or args.use_demo_data
+            tolerate_failure = args.allow_empty
             real_screen = get_screen(str(implementation_path), screen_filename, tolerate_failure=tolerate_failure)
             mock_screen = get_screen(str(mockup_path), screen_filename.replace(".jpg", ".png"), tolerate_failure=tolerate_failure)
 

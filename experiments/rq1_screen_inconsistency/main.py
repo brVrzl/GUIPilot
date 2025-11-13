@@ -11,9 +11,10 @@ from typing import Callable
 if os.name == "nt":
     os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
-ROOT = Path(__file__).resolve().parents[2]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Add experiment directory to path for local imports (utils, mutate)
+EXPERIMENT_DIR = Path(__file__).resolve().parent
+if str(EXPERIMENT_DIR) not in sys.path:
+    sys.path.insert(0, str(EXPERIMENT_DIR))
 
 from dotenv import load_dotenv
 

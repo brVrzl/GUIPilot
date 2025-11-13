@@ -16,9 +16,20 @@ python scripts/setup_env.py
 - Linux GPU → `envs/environment-linux-gpu.yml`
 - Windows → `envs/environment-windows.yml`
 
-环境创建/更新成功后，脚本会自动在对应 Conda 环境内运行 `pip install -r requirements-pip.txt`（Linux GPU 会额外安装 `requirements-pip-gpu.txt`）。
+环境创建/更新成功后，脚本会自动执行以下步骤：
+
+1. 安装 pip 依赖：在对应 Conda 环境内运行 `pip install -r requirements-pip.txt`（Linux GPU 会额外安装 `requirements-pip-gpu.txt`）
+2. **安装 guipilot 包**：自动执行 `pip install -e .`，将 `guipilot` 包安装到 Python 环境中（可编辑模式）
 
 检测到同名环境已存在时，脚本会自动改用 `conda env update`。
+
+> **关于 `setup.py` 的作用**：
+> - `setup.py` 用于将 `guipilot` 包安装到 Python 环境的 site-packages 中
+> - 安装后，可以在任何 Python 脚本中直接 `import guipilot`，无需修改 `sys.path`
+> - 实验脚本中只保留了必要的 `sys.path` 修改，用于导入实验目录下的本地模块（`utils`、`mutate`、`actions`）
+> - `guipilot` 包已安装到环境中，不再需要通过修改 `sys.path` 来导入
+> - 使用 `-e`（可编辑模式）安装后，对源代码的修改会立即生效，无需重新安装
+> - 这种设计更符合 Python 包管理的最佳实践，也便于在其他项目中使用 GUIPilot
 
 若需要手动指定，可加入 `--update` 参数强制同步：
 

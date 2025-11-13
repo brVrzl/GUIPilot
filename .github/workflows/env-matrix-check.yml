@@ -140,11 +140,12 @@ jobs:
       - name: Run RQ4 smoke test (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: >
+          export ENABLE_LOCAL_DETECTOR=1
+          export ENABLE_PADDLEOCR=1
           conda run -n ${{ matrix.platform.smoke_env }} python
           experiments/rq4_case_study/main.py
-          --use-demo-data
+          --dataset datasets/rq4
           --skip-agent
-          --allow-empty
           --skip-visualize
           --process-limit 1
           --screen-limit 1

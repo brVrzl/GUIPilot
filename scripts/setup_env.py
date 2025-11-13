@@ -162,6 +162,32 @@ def main(argv: list[str] | None = None) -> int:
             return pip_result.returncode
 
     print(f"[setup_env] Pip requirements installed into '{env_name}'.")
+
+    # Install guipilot package itself
+    setup_py = ROOT / "setup.py"
+    if setup_py.exists():
+        install_cmd = [
+            conda_exe,
+            "run",
+            "--name",
+            env_name,
+            "python",
+            "-m",
+            "pip",
+            "install",
+            "-e",
+            str(ROOT),
+        ]
+        print(f"[setup_env] Installing guipilot package: {' '.join(install_cmd)}")
+        install_result = subprocess.run(install_cmd, check=False)
+        if install_result.returncode != 0:
+            print(f"[setup_env] Warning: Failed to install guipilot package.", file=sys.stderr)
+            print(f"[setup_env] You can manually install it later with: pip install -e .", file=sys.stderr)
+        else:
+            print(f"[setup_env] Successfully installed guipilot package.")
+    else:
+        print(f"[setup_env] Warning: setup.py not found, skipping guipilot package installation.", file=sys.stderr)
+
     return 0
 
 

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Iterable
 
+# Add project root to path for cross-experiment imports (experiments.rq1_screen_inconsistency)
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
