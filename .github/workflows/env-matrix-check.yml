@@ -142,7 +142,6 @@ jobs:
         run: |
           conda run --no-capture-output -n ${{ matrix.platform.smoke_env }} bash -c "
             export ENABLE_LOCAL_DETECTOR=1
-            export ENABLE_PADDLEOCR=1
             python experiments/rq4_case_study/main.py \
               --dataset datasets/rq4 \
               --skip-agent \
