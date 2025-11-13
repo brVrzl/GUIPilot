@@ -5,9 +5,11 @@ import csv
 import json
 import os
 import random
+import re
 import sys
 import warnings
 from copy import deepcopy
+from functools import partial
 from pathlib import Path
 
 import cv2
@@ -18,7 +20,7 @@ EXPERIMENT_DIR = Path(__file__).resolve().parent
 if str(EXPERIMENT_DIR) not in sys.path:
     sys.path.insert(0, str(EXPERIMENT_DIR))
 
-from actions import Automator, Record
+from actions import Automator, Record, Translator
 from utils import (
     get_action_completion,
     get_mock_screen,
@@ -27,6 +29,7 @@ from utils import (
     get_scores,
     execute_action,
     check_overlap,
+    annotate_screen,
 )
 from guipilot.agent import GPTAgent
 from guipilot.entities import Screen
@@ -62,11 +65,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--replay-real-subdir",
         default="real",
         help="Sub-directory under each process_* folder containing real screens for replay mode.",
-    )
-    parser.add_argument(
-        "--use-layout",
-        action="store_true",
-        help="Populate screens from recorded layout XML instead of calling detector/OCR (useful for replay smoke tests).",
     )
     parser.add_argument(
         "--skip-agent",
@@ -169,8 +167,6 @@ def main(argv: list[str] | None = None) -> int:
     visualize_root.mkdir(parents=True, exist_ok=True)
     report_path = results_dir / args.results_file
 
-    use_layout_for_replay = args.use_layout and args.mode == "replay"
-
     with open(report_path, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow([
@@ -195,6 +191,12 @@ def main(argv: list[str] | None = None) -> int:
             record_text = record_path.read_text()
             record = Record.model_validate_json(record_text)
             record_extra = json.loads(record_text)
+            
+            # Load VLM retry data from separate file if exists
+            vlm_retry_path = process_path / "vlm_retry.json"
+            vlm_retry_data = {}
+            if vlm_retry_path.exists():
+                vlm_retry_data = json.loads(vlm_retry_path.read_text())
 
             process_name = process_path.name
             package_name = record.package_name
@@ -220,7 +222,6 @@ def main(argv: list[str] | None = None) -> int:
                 mock_screen: Screen = get_mock_screen(
                     process_path,
                     next_step,
-                    use_layout=use_layout_for_replay,
                 )
 
                 action_time = 0.0
@@ -243,8 +244,6 @@ def main(argv: list[str] | None = None) -> int:
                         process_path,
                         step_index,
                         args.replay_real_subdir,
-                        layout_filename=next_step.layout if use_layout_for_replay else None,
-                        use_layout=use_layout_for_replay,
                     )
 
                 visualize, scores, times = get_scores(mock_screen, real_screen, matcher, checker)
@@ -254,23 +253,78 @@ def main(argv: list[str] | None = None) -> int:
                 cv2.imwrite(str(save_path), visualize)
 
                 y_completed: list[bool] = []
-                if (
-                    not y_true
-                    and not args.skip_agent
-                    and agent is not None
-                    and args.mode == "interactive"
-                    and automator is not None
-                ):
+                # Check if we should use VLM retry
+                # Either: (1) interactive mode with real agent, or (2) replay mode with skip-agent but has retry data
+                use_vlm_retry = False
+                step_retry_responses = None
+                
+                if not y_true:
+                    if not args.skip_agent and agent is not None and args.mode == "interactive" and automator is not None:
+                        # Case 1: Interactive mode with real agent
+                        use_vlm_retry = True
+                    elif args.skip_agent and args.mode == "replay":
+                        # Case 2: Replay mode with skip-agent, check if retry data exists
+                        step_key = f"step_{step_index}"
+                        if step_key in vlm_retry_data:
+                            step_retry_responses = vlm_retry_data[step_key]
+                            use_vlm_retry = step_retry_responses is not None and len(step_retry_responses) > 0
+                
+                if use_vlm_retry:
                     retries = 3
-                    print("  - Backtracking to deploy action completion agent...")
-                    automator.back()
-                    input("[MANUAL] Confirm backtrack complete, then continue.")
+                    print("  - Deploying action completion agent...")
+                    
+                    if args.mode == "interactive":
+                        automator.back()
+                        input("[MANUAL] Confirm backtrack complete, then continue.")
+                    
+                    # Track which response to use (for replay mode with skip-agent)
+                    retry_response_index = 0
 
                     for attempt in range(retries):
                         y_completed.append(True)
-                        real_screen = get_real_screen(automator)
+                        
+                        # Get real screen
+                        if args.mode == "interactive":
+                            real_screen = get_real_screen(automator)
+                        else:
+                            # In replay mode, use the screen from before inconsistency
+                            real_screen = get_replay_screen(
+                                process_path,
+                                step_index,
+                                args.replay_real_subdir,
+                            )
+                        
                         try:
-                            viz_action, action_names, actions = get_action_completion(agent, real_screen, step)
+                            if args.skip_agent and step_retry_responses:
+                                # Use pre-recorded response instead of calling agent
+                                if retry_response_index < len(step_retry_responses):
+                                    response = step_retry_responses[retry_response_index]
+                                    retry_response_index += 1
+                                else:
+                                    response = step_retry_responses[-1]  # Use last response if out of range
+                                
+                                print(f"[VLM (from retry data)]\n{response}")
+                                
+                                # Process response same way as real agent
+                                image = annotate_screen(real_screen)
+                                actions, action_names = [], []
+                                translator = Translator(real_screen)
+                                matches = re.findall(r"(\w+)\((.*)\)", response)
+                                for method_name, params in matches:
+                                    method = getattr(translator, method_name, None)
+                                    param_list = eval(f"({params})")
+                                    if not isinstance(param_list, tuple):
+                                        param_list = (param_list,)
+                                    
+                                    if method is not None: 
+                                        action = partial(method, *param_list)
+                                        actions.append(action)
+                                        action_names.append(method_name)
+                                
+                                viz_action = (image, response)
+                            else:
+                                # Use real agent
+                                viz_action, action_names, actions = get_action_completion(agent, real_screen, step)
                         except Exception:
                             y_completed[-1] = False
                             continue
@@ -307,15 +361,22 @@ def main(argv: list[str] | None = None) -> int:
                                 f.write(response)
                             image.save(inconsistent_dir / f"{step_index}.jpg")
 
-                        verdict = input(
-                            f"[MANUAL] Action completion attempt {attempt+1}/{retries}, "
-                            f"result = {y_completed[-1]}. Accept? [Y]/[N] "
-                        )
-                        y_completed[-1] = verdict.strip().lower() == "y"
-                        if y_completed[-1]:
-                            break
+                        # In replay mode with skip-agent, auto-accept if action is correct
+                        if args.skip_agent and args.mode == "replay":
+                            if y_completed[-1]:
+                                break
+                        else:
+                            # In interactive mode, ask for manual confirmation
+                            verdict = input(
+                                f"[MANUAL] Action completion attempt {attempt+1}/{retries}, "
+                                f"result = {y_completed[-1]}. Accept? [Y]/[N] "
+                            )
+                            y_completed[-1] = verdict.strip().lower() == "y"
+                            if y_completed[-1]:
+                                break
 
-                    agent.reset()
+                    if agent is not None and hasattr(agent, 'reset'):
+                        agent.reset()
 
                 if not y_true and args.mode == "interactive":
                     break

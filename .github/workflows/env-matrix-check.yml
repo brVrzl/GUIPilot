@@ -116,15 +116,16 @@ jobs:
       # ---------- RQ2 ----------
       - name: Run RQ2 smoke test (Unix)
         if: ${{ runner.os != 'Windows' }}
-        run: >
-          conda run -n ${{ matrix.platform.smoke_env }} python
-          experiments/rq2_flow_inconsistency/main.py
-          --dataset datasets/rq2/smoke_app
-          --mode replay
-          --use-layout
-          --skip-agent
-          --limit 1
-          --output-dir ci-artifacts/rq2
+        run: |
+          conda run --no-capture-output -n ${{ matrix.platform.smoke_env }} bash -c "
+            export ENABLE_LOCAL_DETECTOR=1
+            python experiments/rq2_flow_inconsistency/main.py \
+              --dataset datasets/rq2/smoke_app \
+              --mode replay \
+              --skip-agent \
+              --limit 1 \
+              --output-dir ci-artifacts/rq2
+          "
 
       - name: Run RQ3 smoke test (Unix)
         if: ${{ runner.os != 'Windows' }}
