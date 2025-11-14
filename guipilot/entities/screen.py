@@ -1,19 +1,22 @@
 from __future__ import annotations
-import typing
+
 import os
+import typing
 from dataclasses import dataclass, field
 
 import cv2
 import numpy as np
 
-from .constants import Bbox
-from .widget import Widget, WidgetType
 from guipilot.models import OCR, Detector
 
+from .constants import Bbox
+from .widget import Widget, WidgetType
+
 if typing.TYPE_CHECKING:
-    from .screen import Screen
     from guipilot.checker import ScreenChecker
     from guipilot.matcher import WidgetMatcher
+
+    from .screen import Screen
 
 
 OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL")
@@ -27,22 +30,20 @@ detector = Detector(service_url=DETECTOR_SERVICE_URL)
 class Screen:
     image: np.ndarray
     widgets: dict[int, Widget] = field(default_factory=dict)
-    
+
     def detect(self) -> None:
         """
         Use object detector to extract widgets from screen
         Updates widgets list to the detection results
         """
+
         def _to_bbox(points: np.ndarray) -> Bbox:
             xmin, ymin, xmax, ymax = points
             return Bbox(int(xmin), int(ymin), int(xmax), int(ymax))
-        
+
         bboxes, widget_types = detector(self.image)
         self.widgets = {
-            i: Widget(
-                type=WidgetType(widget_type),
-                bbox=_to_bbox(bbox)
-            )
+            i: Widget(type=WidgetType(widget_type), bbox=_to_bbox(bbox))
             for i, (bbox, widget_type) in enumerate(zip(bboxes, widget_types))
         }
 
@@ -65,7 +66,9 @@ class Screen:
                 print(self.image.shape)
                 print(widget.bbox)
 
-    def check(self, target: Screen, matcher: WidgetMatcher, checker: ScreenChecker) -> tuple[set, float]:
+    def check(
+        self, target: Screen, matcher: WidgetMatcher, checker: ScreenChecker
+    ) -> tuple[set, float]:
         """Check for screen inconsistency
 
         Args:

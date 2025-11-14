@@ -5,10 +5,11 @@ import random
 import sys
 import warnings
 from collections import defaultdict
+from collections.abc import Callable, Iterable
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterable
+from typing import TYPE_CHECKING
 
 # Add project root to path for cross-experiment imports (experiments.rq1_screen_inconsistency)
 ROOT = Path(__file__).resolve().parents[2]
@@ -16,7 +17,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from dotenv import load_dotenv
-
 
 if TYPE_CHECKING:
     from guipilot.checker import ScreenChecker
@@ -84,8 +84,9 @@ def resolve_dataset_path(args: argparse.Namespace) -> Path:
 
 
 def get_pipeline_registry() -> dict[str, Callable[[], PipelineConfig]]:
-    from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher, GVT as GVTMatcher
     from guipilot.checker import GVT as GVTChecker
+    from guipilot.matcher import GVT as GVTMatcher
+    from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher
 
     return {
         "guipilot_full": lambda: PipelineConfig(
@@ -147,21 +148,22 @@ def evaluate_pipeline(
     output_root: Path,
     skip_visualize: bool,
 ) -> dict[str, float]:
+    from experiments.rq1_screen_inconsistency.mutate import (
+        change_widgets_color,
+        change_widgets_text,
+        delete_row,
+        insert_row,
+        swap_widgets,
+    )
     from experiments.rq1_screen_inconsistency.utils import (
+        filter_color,
+        filter_overlap_predictions,
+        filter_swapped_predictions,
+        filter_text,
         load_screen,
         visualize_inconsistencies,
-        filter_swapped_predictions,
-        filter_overlap_predictions,
-        filter_color,
-        filter_text,
     )
-    from experiments.rq1_screen_inconsistency.mutate import (
-        insert_row,
-        delete_row,
-        swap_widgets,
-        change_widgets_text,
-        change_widgets_color,
-    )
+
     mutations = {
         "insert_row": insert_row,
         "delete_row": delete_row,
@@ -171,11 +173,21 @@ def evaluate_pipeline(
     }
 
     postprocessing = {
-        "insert_row": lambda y_pred, y_true, s1, s2: filter_overlap_predictions(y_pred, y_true, None, s2),
-        "delete_row": lambda y_pred, y_true, s1, s2: filter_overlap_predictions(y_pred, y_true, s1, None),
-        "swap_widgets": lambda y_pred, y_true, s1, s2: filter_swapped_predictions(y_pred, y_true, s1, s2),
-        "change_widgets_text": lambda y_pred, y_true, s1, s2: filter_color(y_pred, y_true, s1, None),
-        "change_widgets_color": lambda y_pred, y_true, s1, s2: filter_text(y_pred, y_true, s1, None),
+        "insert_row": lambda y_pred, y_true, s1, s2: filter_overlap_predictions(
+            y_pred, y_true, None, s2
+        ),
+        "delete_row": lambda y_pred, y_true, s1, s2: filter_overlap_predictions(
+            y_pred, y_true, s1, None
+        ),
+        "swap_widgets": lambda y_pred, y_true, s1, s2: filter_swapped_predictions(
+            y_pred, y_true, s1, s2
+        ),
+        "change_widgets_text": lambda y_pred, y_true, s1, s2: filter_color(
+            y_pred, y_true, s1, None
+        ),
+        "change_widgets_color": lambda y_pred, y_true, s1, s2: filter_text(
+            y_pred, y_true, s1, None
+        ),
     }
 
     pipeline_dir = output_root / pipeline.name
@@ -219,7 +231,10 @@ def evaluate_pipeline(
                     if pipeline.enable_ocr:
                         screen2.ocr()
                 except Exception:
-                    warnings.warn(f"[pipeline={pipeline.name}] Failed during mutation for {image_path}", RuntimeWarning)
+                    warnings.warn(
+                        f"[pipeline={pipeline.name}] Failed during mutation for {image_path}",
+                        RuntimeWarning,
+                    )
                     continue
 
                 matcher = pipeline.matcher_factory(screen1)
@@ -227,11 +242,16 @@ def evaluate_pipeline(
                     pairs, _, match_time = matcher.match(screen1, screen2)
                     y_pred, check_time = checker.check(screen1, screen2, pairs)
                 except Exception:
-                    warnings.warn(f"[pipeline={pipeline.name}] Failed during matching/checking for {image_path}", RuntimeWarning)
+                    warnings.warn(
+                        f"[pipeline={pipeline.name}] Failed during matching/checking for {image_path}",
+                        RuntimeWarning,
+                    )
                     continue
 
                 if pipeline.enable_postprocess:
-                    y_pred_filtered = postprocessing[mutation_name](y_pred, y_true, screen1, screen2)
+                    y_pred_filtered = postprocessing[mutation_name](
+                        y_pred, y_true, screen1, screen2
+                    )
                 else:
                     y_pred_filtered = y_pred
 
@@ -274,11 +294,17 @@ def evaluate_pipeline(
                 total_check_time += check_time
                 evaluation_count += 1
 
-        precision = aggregates["tp"] / (aggregates["tp"] + aggregates["fp"]) if (aggregates["tp"] + aggregates["fp"]) else 0.0
-        recall = aggregates["tp"] / (aggregates["tp"] + aggregates["fn"]) if (aggregates["tp"] + aggregates["fn"]) else 0.0
-        cls_precision = (
-            aggregates["cls_tp"] / aggregates["tp"] if aggregates["tp"] else 0.0
+        precision = (
+            aggregates["tp"] / (aggregates["tp"] + aggregates["fp"])
+            if (aggregates["tp"] + aggregates["fp"])
+            else 0.0
         )
+        recall = (
+            aggregates["tp"] / (aggregates["tp"] + aggregates["fn"])
+            if (aggregates["tp"] + aggregates["fn"])
+            else 0.0
+        )
+        cls_precision = aggregates["cls_tp"] / aggregates["tp"] if aggregates["tp"] else 0.0
 
         avg_match_time = total_match_time / evaluation_count if evaluation_count else 0.0
         avg_check_time = total_check_time / evaluation_count if evaluation_count else 0.0
@@ -323,9 +349,7 @@ def main() -> None:
     output_root.mkdir(parents=True, exist_ok=True)
 
     all_paths: list[Path] = [
-        path
-        for path in sorted(dataset_root.rglob("*.jpg"))
-        if path.stem.isdigit()
+        path for path in sorted(dataset_root.rglob("*.jpg")) if path.stem.isdigit()
     ]
     if args.limit is not None:
         all_paths = all_paths[: args.limit]
@@ -335,7 +359,9 @@ def main() -> None:
     requested_pipelines = [name.strip() for name in args.pipelines.split(",") if name.strip()]
     pipelines = ensure_valid_pipelines(requested_pipelines)
 
-    print(f"[RQ3] Evaluating {len(all_paths)} screens with pipelines: {', '.join([p.name for p in pipelines])}")
+    print(
+        f"[RQ3] Evaluating {len(all_paths)} screens with pipelines: {', '.join([p.name for p in pipelines])}"
+    )
 
     summaries: list[dict[str, float]] = []
     for pipeline in pipelines:
@@ -361,4 +387,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

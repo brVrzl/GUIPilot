@@ -35,6 +35,14 @@ ignore = [
     "E501",  # line too long (handled by formatter)
     "E402",  # module level import not at top of file (needed for some experiments)
     "F401",  # imported but unused (sometimes needed for experiments)
+    "N811",  # constant imported as non-constant (alias imports like GVT as GVTChecker)
+    "N816",  # mixedCase variable names (camelCase in some legacy code)
+    "N801",  # class names should use CapWords (legacy code compatibility)
+    "N802",  # function name should be lowercase (legacy code compatibility)
+    "N806",  # variable in function should be lowercase (some constants in functions)
+    "E741",  # ambiguous variable name (l, I, O - sometimes acceptable)
+    "F541",  # f-string without placeholders (sometimes used for consistency)
+    "F841",  # local variable assigned but never used (exception handlers sometimes need this)
 ]
 
 [tool.ruff.lint.per-file-ignores]

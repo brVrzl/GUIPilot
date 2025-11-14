@@ -3,8 +3,8 @@ import csv
 import json
 import os
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import cv2
 import numpy as np
@@ -15,17 +15,18 @@ EXPERIMENT_DIR = Path(__file__).resolve().parent
 if str(EXPERIMENT_DIR) not in sys.path:
     sys.path.insert(0, str(EXPERIMENT_DIR))
 
-from guipilot.agent import GPTAgent
-from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher
-from guipilot.checker import GVT as GVTChecker
 from utils import (
-    get_screen,
-    get_scores,
-    get_report,
-    get_action_completion,
-    visualize,
     check_action,
+    get_action_completion,
+    get_report,
+    get_scores,
+    get_screen,
+    visualize,
 )
+
+from guipilot.agent import GPTAgent
+from guipilot.checker import GVT as GVTChecker
+from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher
 
 
 def parse_args() -> argparse.Namespace:
@@ -186,8 +187,14 @@ def evaluate_case_study(
                 continue
 
             tolerate_failure = args.allow_empty
-            real_screen = get_screen(str(implementation_path), screen_filename, tolerate_failure=tolerate_failure)
-            mock_screen = get_screen(str(mockup_path), screen_filename.replace(".jpg", ".png"), tolerate_failure=tolerate_failure)
+            real_screen = get_screen(
+                str(implementation_path), screen_filename, tolerate_failure=tolerate_failure
+            )
+            mock_screen = get_screen(
+                str(mockup_path),
+                screen_filename.replace(".jpg", ".png"),
+                tolerate_failure=tolerate_failure,
+            )
 
             if real_screen is None or mock_screen is None:
                 continue
@@ -211,14 +218,18 @@ def evaluate_case_study(
                 attempt = 0
                 while not action_status and attempt < args.max_agent_trials:
                     attempt += 1
-                    agent_image, action_names, actions_raw, actions = get_action_completion(agent, real_screen, mock_actions)
+                    agent_image, action_names, actions_raw, actions = get_action_completion(
+                        agent, real_screen, mock_actions
+                    )
                     if len(actions) != len(true_actions):
                         action_trials.append(str(actions_raw))
                         continue
 
                     if not all(
                         check_action(true_action, action_name, action)
-                        for true_action, action_name, action in zip(true_actions, action_names, actions)
+                        for true_action, action_name, action in zip(
+                            true_actions, action_names, actions
+                        )
                     ):
                         action_trials.append(str(actions_raw))
                         continue
@@ -226,7 +237,9 @@ def evaluate_case_study(
                     action_trials.append(str(actions_raw))
                     action_status = True
 
-            vis_image, bbox_image, match_image = visualize(mock_screen, real_screen, pairs, inconsistencies)
+            vis_image, bbox_image, match_image = visualize(
+                mock_screen, real_screen, pairs, inconsistencies
+            )
 
             process_output = output_root / f"process_{process_idx}" / f"screen_{screen_idx}"
             process_output.mkdir(parents=True, exist_ok=True)

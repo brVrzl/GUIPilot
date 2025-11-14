@@ -19,7 +19,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 ENV_FILES = {
     "macos": ROOT / "envs" / "environment-macos.yml",
@@ -123,7 +122,9 @@ def main(argv: list[str] | None = None) -> int:
     env_name = args.name or ENV_NAMES[target]
     should_update = args.update
     if not should_update and env_exists(conda_exe, env_name):
-        print(f"[setup_env] Environment '{env_name}' already exists, switching to 'conda env update'.")
+        print(
+            f"[setup_env] Environment '{env_name}' already exists, switching to 'conda env update'."
+        )
         should_update = True
 
     command = [conda_exe, "env", "update" if should_update else "create", "--file", str(env_file)]
@@ -141,7 +142,10 @@ def main(argv: list[str] | None = None) -> int:
     pip_files = PIP_REQUIREMENTS[target]
     for req_file in pip_files:
         if not req_file.exists():
-            print(f"[setup_env] Warning: requirements file not found, skipping: {req_file}", file=sys.stderr)
+            print(
+                f"[setup_env] Warning: requirements file not found, skipping: {req_file}",
+                file=sys.stderr,
+            )
             continue
         pip_cmd = [
             conda_exe,
@@ -181,16 +185,21 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[setup_env] Installing guipilot package: {' '.join(install_cmd)}")
         install_result = subprocess.run(install_cmd, check=False)
         if install_result.returncode != 0:
-            print(f"[setup_env] Warning: Failed to install guipilot package.", file=sys.stderr)
-            print(f"[setup_env] You can manually install it later with: pip install -e .", file=sys.stderr)
+            print("[setup_env] Warning: Failed to install guipilot package.", file=sys.stderr)
+            print(
+                "[setup_env] You can manually install it later with: pip install -e .",
+                file=sys.stderr,
+            )
         else:
-            print(f"[setup_env] Successfully installed guipilot package.")
+            print("[setup_env] Successfully installed guipilot package.")
     else:
-        print(f"[setup_env] Warning: setup.py not found, skipping guipilot package installation.", file=sys.stderr)
+        print(
+            "[setup_env] Warning: setup.py not found, skipping guipilot package installation.",
+            file=sys.stderr,
+        )
 
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

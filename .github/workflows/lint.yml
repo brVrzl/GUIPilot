@@ -8,12 +8,14 @@ on:
 
 jobs:
   lint:
-    name: Lint Code
+    name: Lint Code (Auto-fix + Check)
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -24,13 +26,51 @@ jobs:
         run: |
           pip install ruff
 
-      - name: Run Ruff linting
+      - name: Run Ruff auto-fix
+        id: ruff_fix
         run: |
+          echo "::group::Running Ruff auto-fix"
+          echo "Auto-fixing linting issues..."
+          ruff check . --fix --exit-zero || true
+          echo "Auto-fixing formatting issues..."
+          ruff format . || true
+          
+          # Check if there are any changes
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "::warning::Code style issues were auto-fixed. Please commit the changes and push again."
+            echo "Modified files:"
+            git diff --name-only
+            git diff --stat
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No code style changes needed."
+          fi
+          echo "::endgroup::"
+
+      - name: Fail if auto-fixes were applied
+        if: steps.ruff_fix.outputs.changes == 'true'
+        run: |
+          echo "::error::Code style issues were auto-fixed. Please:"
+          echo "  1. Pull the latest changes"
+          echo "  2. Run: ruff check . --fix && ruff format ."
+          echo "  3. Commit and push the auto-fixed changes"
+          echo ""
+          echo "Modified files:"
+          git diff --name-only
+          exit 1
+
+      - name: Run Ruff linting (check remaining issues)
+        run: |
+          echo "::group::Checking for remaining linting issues"
           ruff check . --output-format=github || exit 1
+          echo "::endgroup::"
 
       - name: Run Ruff formatting check
         run: |
+          echo "::group::Checking code formatting"
           ruff format --check . || exit 1
+          echo "::endgroup::"
 
   type-check:
     name: Type Check (Optional)
@@ -53,4 +93,3 @@ jobs:
       - name: Run mypy (optional)
         run: |
           mypy --ignore-missing-imports guipilot/ experiments/
-

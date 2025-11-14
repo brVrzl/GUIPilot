@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import typing
 from timeit import default_timer as timer
 
 import numpy as np
 
-from guipilot.matcher import WidgetMatcher, Pair, Score
+from guipilot.matcher import Pair, Score, WidgetMatcher
 
 if typing.TYPE_CHECKING:
     from guipilot.entities import Screen, Widget
@@ -32,35 +33,35 @@ class GUIPilotV2(WidgetMatcher):
 
     def _calculate_match_scores(self, screen_i: Screen, screen_j: Screen) -> np.ndarray:
         def get_distance_score(si: Screen, sj: Screen, i: Widget, j: Widget) -> float:
-            """Calculates Manhattan distance between normalized bboxes of widgets.
-            """
+            """Calculates Manhattan distance between normalized bboxes of widgets."""
             si_h, si_w, _ = si.image.shape
             sj_h, sj_w, _ = sj.image.shape
 
             xi, yi, wi, hi = i.bbox.xmin / si_w, i.bbox.ymin / si_h, i.width / si_w, i.height / si_h
             xj, yj, wj, hj = j.bbox.xmin / sj_w, j.bbox.ymin / sj_h, j.width / sj_w, j.height / sj_h
-            
-            score = self.s1 * (abs(xi - xj) + abs(yi - yj)) + self.s2 * (abs(wi - wj) + abs(hi - hj))
+
+            score = self.s1 * (abs(xi - xj) + abs(yi - yj)) + self.s2 * (
+                abs(wi - wj) + abs(hi - hj)
+            )
             return min(1 / score, 1) if score else 1
 
         def get_area_score(i: Widget, j: Widget) -> float:
-            """Calculates the ratio of widget areas.
-            """
+            """Calculates the ratio of widget areas."""
             areas = [i.area, j.area]
             return min(areas) / max(areas)
 
         def get_shape_score(i: Widget, j: Widget) -> float:
-            """Calculate the ratio of aspect ratios of widgets.
-            """
+            """Calculate the ratio of aspect ratios of widgets."""
             aspect_ratios = [i.width / i.height, j.width / j.height]
             return min(aspect_ratios) / max(aspect_ratios)
 
         def get_type_score(i: Widget, j: Widget) -> float:
-            """Compare the type compatibility of widgets.
-            """
-            if i.type == j.type: return 1
-            else: return 0.01
-        
+            """Compare the type compatibility of widgets."""
+            if i.type == j.type:
+                return 1
+            else:
+                return 0.01
+
         widgets_i, widgets_j = screen_i.widgets.values(), screen_j.widgets.values()
         scores = np.zeros((len(widgets_i), len(widgets_j)))
 
@@ -83,9 +84,7 @@ class GUIPilotV2(WidgetMatcher):
         dp = np.zeros((m + 1, n + 1))
         for i in range(1, m + 1):
             for j in range(1, n + 1):
-                dp[i, j] = max(
-                    dp[i - 1, j], dp[i, j - 1], dp[i - 1, j - 1] + D[i - 1, j - 1]
-                )
+                dp[i, j] = max(dp[i - 1, j], dp[i, j - 1], dp[i - 1, j - 1] + D[i - 1, j - 1])
         i, j = m, n
         sequence = []
         while i > 0 and j > 0:

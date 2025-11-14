@@ -2,11 +2,11 @@ import base64
 import os
 
 import cv2
-import requests
 import numpy as np
+import requests
 
 
-class OCR():
+class OCR:
     def __init__(
         self,
         service_url: str | None = None,
@@ -36,7 +36,9 @@ class OCR():
             except Exception as exc:
                 if use_gpu:
                     try:
-                        self._local_ocr = PaddleOCR(lang=self.language, show_log=False, use_gpu=False)
+                        self._local_ocr = PaddleOCR(
+                            lang=self.language, show_log=False, use_gpu=False
+                        )
                     except Exception as cpu_exc:
                         print(f"[warning] PaddleOCR 初始化失败（CPU 回退亦失败）：{cpu_exc}")
                         self._local_ocr = None
@@ -51,7 +53,8 @@ class OCR():
 
         result = self._local_ocr.ocr(image, cls=False)
         for line in result:
-            if not line: continue
+            if not line:
+                continue
             for word_info in line:
                 bbox = word_info[0]
                 x_coords = [point[0] for point in bbox]
@@ -62,7 +65,7 @@ class OCR():
                 text = word_info[1][0]
                 texts.append(text)
                 text_bboxes.append(bbox)
-        
+
         return texts, text_bboxes
 
     def __call__(self, image: np.ndarray) -> tuple[list, list]:
@@ -70,7 +73,7 @@ class OCR():
             return self._local(image)
 
         _, buffer = cv2.imencode(".jpg", image)
-        img_base64 = base64.b64encode(buffer).decode('utf-8')
+        img_base64 = base64.b64encode(buffer).decode("utf-8")
         response = requests.post(self.service_url, data={"image_array": img_base64})
         data: dict = response.json()
         texts = data.get("text")

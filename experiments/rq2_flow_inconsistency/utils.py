@@ -1,22 +1,22 @@
 import os
 import re
+from collections.abc import Callable, Iterable
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
-from typing import Callable, Iterable
 from timeit import default_timer as timer
 
 import cv2
 import numpy as np
 import supervision as sv
+from actions import Automator, Step, Translator
 from PIL import Image
 from supervision import Detections
 
-from actions import Step, Automator, Translator
 from guipilot.agent import Agent
+from guipilot.checker import ScreenChecker
 from guipilot.entities import Screen
 from guipilot.matcher import WidgetMatcher
-from guipilot.checker import ScreenChecker
 
 
 def get_mock_screen(process_path: str | Path, step: Step) -> Screen:
@@ -58,7 +58,9 @@ def get_replay_screen(
     return real_screen
 
 
-def get_action_completion(agent: Agent, screen: Screen, step: Step) -> tuple[tuple, list[str], list[Callable]]:
+def get_action_completion(
+    agent: Agent, screen: Screen, step: Step
+) -> tuple[tuple, list[str], list[Callable]]:
     description = step.description
     image = annotate_screen(screen)
 
@@ -66,7 +68,7 @@ def get_action_completion(agent: Agent, screen: Screen, step: Step) -> tuple[tup
     prompt_path = os.path.join(base_path, "action_completion.user.prompt")
     prompt = open(prompt_path).read()
     prompt = prompt.replace("{ACTION_DESCRIPTION}", description)
-    
+
     response = agent(prompt, [image])
 
     print("[VLM]\n", response)
@@ -79,8 +81,8 @@ def get_action_completion(agent: Agent, screen: Screen, step: Step) -> tuple[tup
         param_list = eval(f"({params})")
         if not isinstance(param_list, tuple):
             param_list = (param_list,)
-            
-        if method is not None: 
+
+        if method is not None:
             action = partial(method, *param_list)
             actions.append(action)
             action_names.append(method_name)
@@ -89,7 +91,9 @@ def get_action_completion(agent: Agent, screen: Screen, step: Step) -> tuple[tup
     return visualize, action_names, actions
 
 
-def get_scores(mock: Screen, real: Screen, matcher: WidgetMatcher, checker: ScreenChecker) -> tuple[np.ndarray, tuple, tuple]:
+def get_scores(
+    mock: Screen, real: Screen, matcher: WidgetMatcher, checker: ScreenChecker
+) -> tuple[np.ndarray, tuple, tuple]:
     """Get consistency scores for the current (real) screen as compared to mock screen.
 
     Args:
@@ -130,8 +134,9 @@ def execute_action(automator: Automator, step: Step) -> float:
     start_time = timer()
     params: dict = deepcopy(step.params)
     for _, value in params.items():
-        if isinstance(value, dict): value.pop("bounds", None)
-    
+        if isinstance(value, dict):
+            value.pop("bounds", None)
+
     action = getattr(automator, step.action)
     action(**params)
     return timer() - start_time
@@ -141,20 +146,22 @@ def annotate_screen(screen: Screen) -> Image.Image:
     # Pad image to accomodate annotations
     x_pad, y_pad = 50, 50
     image = deepcopy(screen.image)
-    image = cv2.copyMakeBorder(image, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    image = cv2.copyMakeBorder(
+        image, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=(255, 255, 255)
+    )
 
     # Check if UI is dark or light and assign text color
     gray = cv2.cvtColor(screen.image, cv2.COLOR_BGR2GRAY)
     gray_resized = cv2.resize(gray, (100, 100))
     avg_brightness = np.mean(gray_resized)
     text_color = (0, 255, 0) if avg_brightness < 128 else (255, 0, 0)
-        
+
     # Mask out regions occupied by widgets in the image
     h, w, _ = screen.image.shape
-    mask = np.zeros(shape=(h + 2*y_pad, w + 2*x_pad))
+    mask = np.zeros(shape=(h + 2 * y_pad, w + 2 * x_pad))
     for widget in screen.widgets.values():
         x_min, y_min, x_max, y_max = widget.bbox
-        mask[y_pad+y_min:y_pad+y_max, x_pad+x_min:x_pad+x_max] = 1
+        mask[y_pad + y_min : y_pad + y_max, x_pad + x_min : x_pad + x_max] = 1
 
     # For each widget, find an empty side to annotate, otherwise annotate center
     font, font_scale, font_thickness = cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2
@@ -168,22 +175,22 @@ def annotate_screen(screen: Screen) -> Image.Image:
         text_size = cv2.getTextSize(id, font, font_scale, font_thickness)[0]
 
         # up
-        if np.sum(mask[y_min-margin:y_min, x_min:x_max]) == 0:
+        if np.sum(mask[y_min - margin : y_min, x_min:x_max]) == 0:
             text_x = x_min
             text_y = y_min
-        
+
         # left
-        elif np.sum(mask[y_min:y_max, x_min-margin:x_min]) == 0:
+        elif np.sum(mask[y_min:y_max, x_min - margin : x_min]) == 0:
             text_x = x_min - text_size[0]
             text_y = y_min + text_size[1]
 
         # down
-        elif np.sum(mask[y_max:y_max+margin, x_min:x_max]) == 0:
+        elif np.sum(mask[y_max : y_max + margin, x_min:x_max]) == 0:
             text_x = x_min
             text_y = y_max + text_size[1]
 
         # right
-        elif np.sum(mask[y_min:y_max, x_max:x_max+margin]) == 0:
+        elif np.sum(mask[y_min:y_max, x_max : x_max + margin]) == 0:
             text_x = x_max
             text_y = y_min + text_size[1]
 
@@ -201,7 +208,9 @@ def annotate_screen(screen: Screen) -> Image.Image:
     return image
 
 
-def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[tuple]) -> np.ndarray:
+def visualize_inconsistencies(
+    s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[tuple]
+) -> np.ndarray:
     def _get_one_image(img_list: list[np.ndarray]):
         max_height = 0
         total_width = 0  # padding
@@ -217,16 +226,22 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
         for image in img_list:
             # add an image to the final array and increment the y coordinate
             image = np.vstack((image, np.zeros((max_height - image.shape[0], image.shape[1], 3))))
-            final_image[:, current_x:current_x + image.shape[1], :] = image
+            final_image[:, current_x : current_x + image.shape[1], :] = image
             current_x += image.shape[1]
         return final_image
 
     annotators = [
         sv.BoxAnnotator(color=sv.Color.GREEN, thickness=2, color_lookup=sv.ColorLookup.INDEX),
         sv.BoxAnnotator(color=sv.Color.YELLOW, thickness=2, color_lookup=sv.ColorLookup.INDEX),
-        sv.BoxAnnotator(color=sv.Color.RED, thickness=2, color_lookup=sv.ColorLookup.INDEX)
+        sv.BoxAnnotator(color=sv.Color.RED, thickness=2, color_lookup=sv.ColorLookup.INDEX),
     ]
-    label_annotator = sv.LabelAnnotator(color=sv.Color.BLACK, text_color=sv.Color.WHITE, color_lookup=sv.ColorLookup.INDEX, text_position=sv.Position.TOP_LEFT, text_padding=1)
+    label_annotator = sv.LabelAnnotator(
+        color=sv.Color.BLACK,
+        text_color=sv.Color.WHITE,
+        color_lookup=sv.ColorLookup.INDEX,
+        text_position=sv.Position.TOP_LEFT,
+        text_padding=1,
+    )
 
     s1_bboxes = {"paired": {}, "paired_inconsistent": {}, "unpaired": {}}
     s2_bboxes = {"paired": {}, "paired_inconsistent": {}, "unpaired": {}}
@@ -234,8 +249,10 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
     paired_inconsistent = set()
     for inconsistency in inconsistencies:
         id1, id2 = inconsistency[:2]
-        if id1 is not None: xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
-        if id2 is not None: xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
+        if id1 is not None:
+            xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
+        if id2 is not None:
+            xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
         if id1 is not None and id2 is not None:
             s1_bboxes["paired_inconsistent"][id1] = [int(xmin1), int(ymin1), int(xmax1), int(ymax1)]
             s2_bboxes["paired_inconsistent"][id2] = [int(xmin2), int(ymin2), int(xmax2), int(ymax2)]
@@ -246,7 +263,8 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
             s2_bboxes["unpaired"][id2] = [int(xmin2), int(ymin2), int(xmax2), int(ymax2)]
 
     for pair in pairs:
-        if pair in paired_inconsistent: continue
+        if pair in paired_inconsistent:
+            continue
         id1, id2 = pair
         xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
         xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
@@ -255,14 +273,16 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
 
     s1_image = s1.image
     for (name, bboxes), annotator in zip(s1_bboxes.items(), annotators):
-        if len(bboxes) == 0: continue
+        if len(bboxes) == 0:
+            continue
         detections = Detections(np.array([bbox for bbox in bboxes.values()]))
         annotator.annotate(s1_image, detections)
         label_annotator.annotate(s1_image, detections, labels=[f"{i}" for i in bboxes.keys()])
 
     s2_image = s2.image
     for (name, bboxes), annotator in zip(s2_bboxes.items(), annotators):
-        if len(bboxes) == 0: continue
+        if len(bboxes) == 0:
+            continue
         detections = Detections(np.array([bbox for bbox in bboxes.values()]))
         annotator.annotate(s2_image, detections)
         label_annotator.annotate(s2_image, detections, labels=[f"{i}" for i in bboxes.keys()])
@@ -275,7 +295,6 @@ def check_overlap(box1: Iterable[int], box2: Iterable[int]) -> bool:
     # Unpack the coordinates of the boxes
     x1_min, y1_min, x1_max, y1_max = box1
     x2_min, y2_min, x2_max, y2_max = box2
-    
+
     # Check for overlap using the condition
-    return (x1_min <= x2_max and x2_min <= x1_max and
-            y1_min <= y2_max and y2_min <= y1_max)
+    return x1_min <= x2_max and x2_min <= x1_max and y1_min <= y2_max and y2_min <= y1_max

@@ -22,19 +22,20 @@ if str(EXPERIMENT_DIR) not in sys.path:
 
 from actions import Automator, Record, Translator
 from utils import (
+    annotate_screen,
+    check_overlap,
+    execute_action,
     get_action_completion,
     get_mock_screen,
     get_real_screen,
     get_replay_screen,
     get_scores,
-    execute_action,
-    check_overlap,
-    annotate_screen,
 )
+
 from guipilot.agent import GPTAgent
+from guipilot.checker import GVT as GVTChecker
 from guipilot.entities import Screen
 from guipilot.matcher import GUIPilotV2 as GUIPilotMatcher
-from guipilot.checker import GVT as GVTChecker
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -169,19 +170,21 @@ def main(argv: list[str] | None = None) -> int:
 
     with open(report_path, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow([
-            "id",
-            "score1",
-            "score2",
-            "score3",
-            "action_time",
-            "time1",
-            "time2",
-            "time3",
-            "ground_truth",
-            "is_completed",
-            "retries",
-        ])
+        writer.writerow(
+            [
+                "id",
+                "score1",
+                "score2",
+                "score3",
+                "action_time",
+                "time1",
+                "time2",
+                "time3",
+                "ground_truth",
+                "is_completed",
+                "retries",
+            ]
+        )
 
         for process_idx, process_path in enumerate(process_paths):
             record_path = process_path / "record.json"
@@ -191,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
             record_text = record_path.read_text()
             record = Record.model_validate_json(record_text)
             record_extra = json.loads(record_text)
-            
+
             # Load VLM retry data from separate file if exists
             vlm_retry_path = process_path / "vlm_retry.json"
             vlm_retry_data = {}
@@ -205,7 +208,9 @@ def main(argv: list[str] | None = None) -> int:
                 record_extra,
                 args.inconsistency_index,
             )
-            print(f"[{process_idx+1}/{len(process_paths)}] {package_name}::{process_name} | inconsistent step = {inconsistent_index}")
+            print(
+                f"[{process_idx + 1}/{len(process_paths)}] {package_name}::{process_name} | inconsistent step = {inconsistent_index}"
+            )
 
             if args.mode == "interactive" and automator is not None:
                 print("Launching app...")
@@ -216,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
             process_visualize_dir.mkdir(parents=True, exist_ok=True)
 
             for step_index, step in enumerate(record.steps[:-1]):
-                print(f"  - Step {step_index+1}/{len(record.steps[:-1])}: {step.description}")
+                print(f"  - Step {step_index + 1}/{len(record.steps[:-1])}: {step.description}")
 
                 next_step = record.steps[step_index + 1]
                 mock_screen: Screen = get_mock_screen(
@@ -257,9 +262,14 @@ def main(argv: list[str] | None = None) -> int:
                 # Either: (1) interactive mode with real agent, or (2) replay mode with skip-agent but has retry data
                 use_vlm_retry = False
                 step_retry_responses = None
-                
+
                 if not y_true:
-                    if not args.skip_agent and agent is not None and args.mode == "interactive" and automator is not None:
+                    if (
+                        not args.skip_agent
+                        and agent is not None
+                        and args.mode == "interactive"
+                        and automator is not None
+                    ):
                         # Case 1: Interactive mode with real agent
                         use_vlm_retry = True
                     elif args.skip_agent and args.mode == "replay":
@@ -267,22 +277,24 @@ def main(argv: list[str] | None = None) -> int:
                         step_key = f"step_{step_index}"
                         if step_key in vlm_retry_data:
                             step_retry_responses = vlm_retry_data[step_key]
-                            use_vlm_retry = step_retry_responses is not None and len(step_retry_responses) > 0
-                
+                            use_vlm_retry = (
+                                step_retry_responses is not None and len(step_retry_responses) > 0
+                            )
+
                 if use_vlm_retry:
                     retries = 3
                     print("  - Deploying action completion agent...")
-                    
+
                     if args.mode == "interactive":
                         automator.back()
                         input("[MANUAL] Confirm backtrack complete, then continue.")
-                    
+
                     # Track which response to use (for replay mode with skip-agent)
                     retry_response_index = 0
 
                     for attempt in range(retries):
                         y_completed.append(True)
-                        
+
                         # Get real screen
                         if args.mode == "interactive":
                             real_screen = get_real_screen(automator)
@@ -293,7 +305,7 @@ def main(argv: list[str] | None = None) -> int:
                                 step_index,
                                 args.replay_real_subdir,
                             )
-                        
+
                         try:
                             if args.skip_agent and step_retry_responses:
                                 # Use pre-recorded response instead of calling agent
@@ -301,10 +313,12 @@ def main(argv: list[str] | None = None) -> int:
                                     response = step_retry_responses[retry_response_index]
                                     retry_response_index += 1
                                 else:
-                                    response = step_retry_responses[-1]  # Use last response if out of range
-                                
+                                    response = step_retry_responses[
+                                        -1
+                                    ]  # Use last response if out of range
+
                                 print(f"[VLM (from retry data)]\n{response}")
-                                
+
                                 # Process response same way as real agent
                                 image = annotate_screen(real_screen)
                                 actions, action_names = [], []
@@ -315,16 +329,18 @@ def main(argv: list[str] | None = None) -> int:
                                     param_list = eval(f"({params})")
                                     if not isinstance(param_list, tuple):
                                         param_list = (param_list,)
-                                    
-                                    if method is not None: 
+
+                                    if method is not None:
                                         action = partial(method, *param_list)
                                         actions.append(action)
                                         action_names.append(method_name)
-                                
+
                                 viz_action = (image, response)
                             else:
                                 # Use real agent
-                                viz_action, action_names, actions = get_action_completion(agent, real_screen, step)
+                                viz_action, action_names, actions = get_action_completion(
+                                    agent, real_screen, step
+                                )
                         except Exception:
                             y_completed[-1] = False
                             continue
@@ -368,14 +384,14 @@ def main(argv: list[str] | None = None) -> int:
                         else:
                             # In interactive mode, ask for manual confirmation
                             verdict = input(
-                                f"[MANUAL] Action completion attempt {attempt+1}/{retries}, "
+                                f"[MANUAL] Action completion attempt {attempt + 1}/{retries}, "
                                 f"result = {y_completed[-1]}. Accept? [Y]/[N] "
                             )
                             y_completed[-1] = verdict.strip().lower() == "y"
                             if y_completed[-1]:
                                 break
 
-                    if agent is not None and hasattr(agent, 'reset'):
+                    if agent is not None and hasattr(agent, "reset"):
                         agent.reset()
 
                 if not y_true and args.mode == "interactive":
@@ -383,19 +399,21 @@ def main(argv: list[str] | None = None) -> int:
 
                 score1, score2, score3 = scores
                 time1, time2, time3 = times
-                writer.writerow([
-                    f"{package_name}/{process_name}/{step_index}",
-                    f"{score1:.6f}",
-                    f"{score2:.6f}",
-                    f"{score3:.6f}",
-                    f"{action_time:.6f}",
-                    f"{time1:.6f}",
-                    f"{time2:.6f}",
-                    f"{time3:.6f}",
-                    y_true,
-                    y_completed[-1] if y_completed else False,
-                    len(y_completed),
-                ])
+                writer.writerow(
+                    [
+                        f"{package_name}/{process_name}/{step_index}",
+                        f"{score1:.6f}",
+                        f"{score2:.6f}",
+                        f"{score3:.6f}",
+                        f"{action_time:.6f}",
+                        f"{time1:.6f}",
+                        f"{time2:.6f}",
+                        f"{time3:.6f}",
+                        y_true,
+                        y_completed[-1] if y_completed else False,
+                        len(y_completed),
+                    ]
+                )
 
     print(f"Results written to: {report_path}")
     return 0

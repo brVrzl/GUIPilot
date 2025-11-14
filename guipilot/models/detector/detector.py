@@ -59,10 +59,10 @@ class Detector:
             print(f"[warning] 加载 YOLO 权重失败：{exc}")
             self._local_detector = None
 
-    def _empty(self) -> Tuple[np.ndarray, np.ndarray]:
+    def _empty(self) -> tuple[np.ndarray, np.ndarray]:
         return np.empty((0, 4), dtype=float), np.empty((0,), dtype=int)
 
-    def _local(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _local(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         if self._local_detector is None:
             return self._empty()
 
@@ -94,7 +94,7 @@ class Detector:
 
         return self._format_output(boxes, class_ids)
 
-    def _remote(self, image: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    def _remote(self, image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         _, buffer = cv2.imencode(".jpg", image)
         img_base64 = base64.b64encode(buffer).decode("utf-8")
         response = requests.post(self.service_url, data={"image_array": img_base64}, timeout=30)
