@@ -1,0 +1,56 @@
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Ruff
+        run: |
+          pip install ruff
+
+      - name: Run Ruff linting
+        run: |
+          ruff check . --output-format=github || exit 1
+
+      - name: Run Ruff formatting check
+        run: |
+          ruff format --check . || exit 1
+
+  type-check:
+    name: Type Check (Optional)
+    runs-on: ubuntu-latest
+    continue-on-error: true  # 不强制类型检查，可根据需要调整
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install mypy types-PyYAML types-requests
+
+      - name: Run mypy (optional)
+        run: |
+          mypy --ignore-missing-imports guipilot/ experiments/
+
